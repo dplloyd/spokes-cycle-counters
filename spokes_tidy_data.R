@@ -28,7 +28,8 @@ glimpse(test)
 
 list_of_dirs <-
   dir("data/", full.names = TRUE, recursive = TRUE) %>%
-  str_subset("bin[a-z].csv") %>%
+  str_subset(".csv") %>%
+  str_subset("bin_") %>% 
   as.list()
 
 read_counter_data <- function(path) {
