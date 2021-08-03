@@ -42,14 +42,13 @@ read_counter_data <- function(path) {
   
 }
 
-test <- map_df(list_of_dirs[1],
+all_data <- map_df(list_of_dirs,
             read_csv,
             col_types = cols(`Flag Text` = col_character(),
                              `LaneDescription` = col_character(),
-                             `#Bins` = col_ski
+                             `#Bins` = col_skip(),
                               Bins = col_skip() ))
 
+all_data <- all_data %>% mutate(DirectionDescription = as_factor(DirectionDescription))
 
-pathtest <- 'data//52 A8 Wester Coates/pvr_2019-01-01_365d.csv'
-
-read_csv(pathtest,col_types =cols(`Flag Text` = col_character()))
+all_data %>% count(DirectionDescription)
