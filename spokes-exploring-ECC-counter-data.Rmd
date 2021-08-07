@@ -1,0 +1,53 @@
+---
+title: "Exploring ECC counter data"
+author: "Diarmuid Lloyd"
+date: "07/08/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, echo = FALSE)
+
+library(tidyverse)
+library(dbplyr)
+library(DBI)
+
+```
+
+Loading counter data for locations John flagged as of interest
+
+```{r}
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "data/ecc-counter-database-output.sqlite")
+
+df <- tbl(con, "station_counts_hour") %>% 
+  filter(station_num %in% c("31","35","48","38","52","15")) %>% collect()
+
+dbDisconnect(con)
+
+```
+
+
+```{r}
+
+
+df <- df %>% mutate(date = lubridate::as_datetime(date))
+
+df %>% count(station_name)
+
+# this needs changed to have a date variable that's "week starting" or "month of" etc.
+df <- df %>% 
+  group_by(station_num) %>% 
+  mutate(week = lubridate::week(date),
+         year = lubridate::year(date),
+         month = lubridate::month(date))
+
+df_weekly <- df %>% 
+  group_by(station_name,year,month,week) %>% 
+  summarise(volume = sum(volume))
+
+ggplot(df) +
+  geom_line(aes(x = date, y = volume, group = station_num,colour = station_name)) +
+  facet_wrap(~station_name)
+
+```
+

@@ -14,7 +14,8 @@
 ##
 ## Notes:
 ##
-##
+## Builds database holding all ECC data in one place.
+## 
 ## ---------------------------
 
 
@@ -45,16 +46,18 @@ counters %>% count(station_name)
 
 
 
-#do as a loop
+#do as a loop, as purrr resulting in memory issues
 first_run <- TRUE
-for (i in list_of_dirs) {
- print(i)
+for (i in 1:length(list_of_dirs)) {
+ print(list_of_dirs[i])
+  #files don't have constant header and fields, so don't read colnames
+  df <- read.table(list_of_dirs[i],sep=",", fill = TRUE, header = FALSE) 
   
-  df <- read.table(i,sep=",", fill = TRUE, header = FALSE) 
-  
+  #Now assign colnames, and delete first row which held the names
   colnames(df) = df[1,]
   df <- df[-1,]
   
+  # Choose the fields of interest.
   df <- df %>%
     select(
       date = Sdate,
@@ -63,7 +66,11 @@ for (i in list_of_dirs) {
       flag = Flags,
       flag_text = `Flag Text`
     ) %>%
-    type_convert()
+    type_convert(col_types = cols(date=col_datetime())) %>% 
+    mutate(#path = counters$path[i],
+           station_num = counters$station_num[i],
+           station_name = counters$station_name[i],
+           filename = counters$filename[i])
   
   if (first_run == TRUE) {
     dbWriteTable(ecc_counter_db, "station_counts_hour", df, overwrite = TRUE)
@@ -76,6 +83,7 @@ for (i in list_of_dirs) {
   rm(df)
 }
 
+# Disconnect
 dbDisconnect(ecc_counter_db)
 
 
