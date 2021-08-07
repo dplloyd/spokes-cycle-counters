@@ -83,11 +83,13 @@ Plotting weekly total trips, also filtering out all flagged "bad data". Seems to
 
 ```{r}
 
-ggplot(df_weekly) +
+weekly_counts_rough <- ggplot(df_weekly) +
   geom_col(aes(week_starting, volume, fill = station_name)) + 
   facet_wrap(~station_name) +
     theme(legend.position = "none")
 
+png("output/rough_weekly_counts.png")
+weekly_counts_rough
 ```
 
 
