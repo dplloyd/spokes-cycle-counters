@@ -21,7 +21,6 @@
 ## Packages
 library(tidyverse)
 library(dbplyr)
-library(janitor)
 library(DBI)
 
 # Create SQLite database in which we'll store our data
@@ -32,8 +31,7 @@ ecc_counter_db <- DBI::dbConnect(drv = RSQLite::SQLite(),dbname =  ecc_counter_d
 list_of_dirs <-
   dir("data/", full.names = TRUE, recursive = TRUE) %>%
   str_subset(".csv") %>%
-  str_subset("bin_") %>% 
-  as.list()
+  str_subset("bin_") 
 
 # separates out some identifying information on each counter station from filenames and paths
 counters <- tibble(path = dir("data/", recursive = TRUE) %>%
@@ -46,31 +44,39 @@ counters <- tibble(path = dir("data/", recursive = TRUE) %>%
 counters %>% count(station_name) 
 
 
-# Function for reading the columns of (probable) interest and use.
-add_to_db <- function(path) {
-  df <- read_csv(
-    path,
-    col_types = cols(
-      `Flag Text` = col_character(),
-      `LaneDescription` = col_character(),
-      `#Bins` = col_skip(),
-      Bins = col_skip()
-    )
-  )
+
+#do as a loop
+first_run <- TRUE
+for (i in list_of_dirs) {
+ print(i)
+  
+  df <- read.table(i,sep=",", fill = TRUE, header = FALSE) 
+  
+  colnames(df) = df[1,]
+  df <- df[-1,]
+  
+  df <- df %>%
+    select(
+      date = Sdate,
+      direction_description = DirectionDescription,
+      volume = Volume,
+      flag = Flags,
+      flag_text = `Flag Text`
+    ) %>%
+    type_convert()
+  
+  if (first_run == TRUE) {
+    dbWriteTable(ecc_counter_db, "station_counts_hour", df, overwrite = TRUE)
+    first_run = FALSE
+  }
+  else {
+    dbWriteTable(ecc_counter_db, "station_counts_hour", df, append = TRUE)
+  }  
+  
+  rm(df)
 }
 
-all_data <- map_df(list_of_dirs[1:100],
-            read_csv,
-            col_types = cols(`Flag Text` = col_character(),
-                             `LaneDescription` = col_character(),
-                             `#Bins` = col_skip(),
-                              Bins = col_skip() ))
-
-all_data <- all_data %>% mutate(DirectionDescription = as_factor(DirectionDescription))
-
-all_data %>% count(DirectionDescription)
-
-
+dbDisconnect(ecc_counter_db)
 
 
 
