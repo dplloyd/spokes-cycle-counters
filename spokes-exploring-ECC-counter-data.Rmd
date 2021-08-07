@@ -1,12 +1,14 @@
 ---
 title: "Exploring ECC counter data"
 author: "Diarmuid Lloyd"
-date: "07/08/2021"
-output: html_document
+date: "Last run: `r Sys.Date() `"
+output: 
+  html_document:
+    theme: flatly
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, echo = FALSE)
+knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 library(dbplyr)
@@ -14,7 +16,24 @@ library(DBI)
 
 ```
 
-Loading counter data for locations John flagged as of interest
+# Introduction
+
+Loading counter data for locations John flagged as of interest:
+
+**On Road - SfP**
+
+* 031 Dundee Street
+* 035 A90 Deans Bridge
+* 048 Crewe Rd South
+* 038 Bruntsfield Pl (Southbound)
+
+**On Road - Non SfP**
+
+* 052 A8 Wester Coates
+
+**Off Road - Non SfP**
+
+* 015 Middle Meadow Walk
 
 ```{r}
 con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "data/ecc-counter-database-output.sqlite")
@@ -26,28 +45,50 @@ dbDisconnect(con)
 
 ```
 
+# Intial plots and exploring data
 
 ```{r}
-
 
 df <- df %>% mutate(date = lubridate::as_datetime(date))
 
 df %>% count(station_name)
 
-# this needs changed to have a date variable that's "week starting" or "month of" etc.
+df %>% count(flag_text)
+
 df <- df %>% 
   group_by(station_num) %>% 
-  mutate(week = lubridate::week(date),
+  mutate(week_starting = lubridate::floor_date(date, unit = "week") %>% as.Date(),
          year = lubridate::year(date),
          month = lubridate::month(date))
 
 df_weekly <- df %>% 
-  group_by(station_name,year,month,week) %>% 
+  group_by(station_name,week_starting) %>% 
+  filter(is.na(flag_text)) %>% 
   summarise(volume = sum(volume))
+
+```
+
+Plotting raw volume by hour
+
+```{r}
 
 ggplot(df) +
   geom_line(aes(x = date, y = volume, group = station_num,colour = station_name)) +
-  facet_wrap(~station_name)
+  facet_wrap(~station_name) +
+  theme(legend.position = "none")
 
 ```
+
+Plotting weekly total trips, also filtering out all flagged "bad data". Seems to knock out Pedal on Parliament on MMW? Regardless, huge gaps in the data.
+
+```{r}
+
+ggplot(df_weekly) +
+  geom_col(aes(week_starting, volume, fill = station_name)) + 
+  facet_wrap(~station_name) +
+    theme(legend.position = "none")
+
+```
+
+
 
