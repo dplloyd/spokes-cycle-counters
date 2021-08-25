@@ -34,6 +34,13 @@ list_of_dirs <-
   str_subset(".csv") %>%
   str_subset("bin_") 
 
+list_of_dirs_pvr <-
+  dir("data/", full.names = TRUE, recursive = TRUE) %>%
+  str_subset(".csv") %>%
+  str_subset("pvr_") 
+
+list_of_dirs <- c(list_of_dirs,list_of_dirs_pvr)
+
 # separates out some identifying information on each counter station from filenames and paths
 counters <- tibble(path = dir("data/", recursive = TRUE) %>%
                      str_subset(".csv") %>%
