@@ -2,9 +2,7 @@
 title: "Exploring ECC counter data"
 author: "Diarmuid Lloyd"
 date: "Last run: `r Sys.Date() `"
-output: 
-  html_document:
-    theme: flatly
+output: html_notebook
 ---
 
 ```{r setup, include=FALSE}
@@ -42,6 +40,14 @@ df <- tbl(con, "station_counts_hour") %>%
   filter(station_num %in% c("31","35","48","38","52","15")) %>% collect()
 
 dbDisconnect(con)
+
+
+con2 <- DBI::dbConnect(RSQLite::SQLite(), dbname = "data/cycle-hire.db")
+
+df2 <- tbl(con2, "trips") %>%  collect()
+
+dbDisconnect(con2)
+
 
 ```
 
