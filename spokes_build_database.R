@@ -28,6 +28,14 @@ library(DBI)
 ecc_counter_db_file <- "data/ecc-counter-database-output.sqlite"
 ecc_counter_db <- DBI::dbConnect(drv = RSQLite::SQLite(), dbname =  ecc_counter_db_file)
 
+<<<<<<< HEAD
+=======
+# Gets all the sub-dir names containing csv files which start with bin_.
+list_of_dirs_bin <-
+  dir("data/", full.names = TRUE, recursive = TRUE) %>%
+  str_subset(".csv") %>%
+  str_subset("bin_") 
+>>>>>>> 502f562935426a388e9c56c831393b2eee2ac6b8
 
 # Function reads in data from across folders and writes to table.
 # Table distinguished by the leading prefix of filename, which must be supplied.
@@ -55,10 +63,10 @@ counters %>% count(station_name)
 # Deal with the bin files first
 #do as a loop, as purrr resulting in memory issues
 first_run <- TRUE
-for (i in 1:length(list_of_dirs)) {
+for (i in 1:length(list_of_dirs_bin)) {
  print(list_of_dirs[i])
   #files don't have constant header and fields, so don't read colnames
-  df <- read.table(list_of_dirs[i],sep=",", fill = TRUE, header = FALSE) 
+  df <- read.table(list_of_dirs_bin[i],sep=",", fill = TRUE, header = FALSE) 
   
   #Now assign colnames, and delete first row which held the names
   colnames(df) = df[1,]
@@ -80,11 +88,19 @@ for (i in 1:length(list_of_dirs)) {
            filename = counters$filename[i])
   
   if (first_run == TRUE) {
+<<<<<<< HEAD
     dbWriteTable(ecc_counter_db, paste0("station_counts_hour_",prefix), df, overwrite = TRUE)
     first_run = FALSE
   }
   else {
     dbWriteTable(ecc_counter_db, paste0("station_counts_hour_",prefix), df, append = TRUE)
+=======
+    dbWriteTable(ecc_counter_db, "station_counts_hour_bin", df, overwrite = TRUE)
+    first_run = FALSE
+  }
+  else {
+    dbWriteTable(ecc_counter_db, "station_counts_hour_bin", df, append = TRUE)
+>>>>>>> 502f562935426a388e9c56c831393b2eee2ac6b8
   }  
   
   rm(df)
@@ -92,6 +108,7 @@ for (i in 1:length(list_of_dirs)) {
   
 }
 
+<<<<<<< HEAD
 }
 
 write_cycle_count_db("bin",  ecc_counter_db)
@@ -116,5 +133,46 @@ dbDisconnect(con)
 df_bin <- df_bin %>% group_by(date, direction_description)
 df_pvr <- df_pvr %>% group_by(date, direction_description)
 
+=======
+>>>>>>> 502f562935426a388e9c56c831393b2eee2ac6b8
 
+# Now do the pvr files
+#do as a loop, as purrr resulting in memory issues
+first_run <- TRUE
+for (i in 1:length(list_of_dirs_pvr)) {
+  print(list_of_dirs_pvr[i])
+  #files don't have constant header and fields, so don't read colnames
+  df <- read.table(list_of_dirs_pvr[i],sep=",", fill = TRUE, header = FALSE) 
+  
+  #Now assign colnames, and delete first row which held the names
+  colnames(df) = df[1,]
+  df <- df[-1,]
+  
+  # Choose the fields of interest.
+  df <- df %>%
+    select(
+      date = Sdate,
+      direction_description = DirectionDescription,
+      volume = Volume,
+      flag = Flags,
+      flag_text = `Flag Text`
+    ) %>%
+    type_convert(col_types = cols(date=col_datetime())) %>% 
+    mutate(#path = counters$path[i],
+      station_num = counters$station_num[i],
+      station_name = counters$station_name[i],
+      filename = counters$filename[i])
+  
+  if (first_run == TRUE) {
+    dbWriteTable(ecc_counter_db, "station_counts_hour_bin", df, overwrite = TRUE)
+    first_run = FALSE
+  }
+  else {
+    dbWriteTable(ecc_counter_db, "station_counts_hour_bin", df, append = TRUE)
+  }  
+  
+  rm(df)
+}
 
+# Disconnect
+dbDisconnect(ecc_counter_db)
