@@ -1,0 +1,40 @@
+---
+title: "Exploring Active Travel Open Data"
+output: html_notebook
+---
+
+This is a notebook for recording early data exploration of the [Active Travel Open Data portal](https://usmart.io/org/cyclingscotland/). 
+
+# Live counter data
+
+
+
+```{r, setup}
+library(httr)
+library(jsonlite)
+library(tidyverse)
+```
+
+
+```{r}
+
+daily_counts <- GET("https://api.usmart.io/org/d1b773fa-d2bd-4830-b399-ecfd18e832f3/7aa487cd-3cd5-405b-850e-1e2ac317816c/latest/urql")
+
+daily_counts
+
+status_code(daily_counts)
+headers(daily_counts)
+
+```
+
+
+We'll need the jsonlite library, so have added that.
+
+
+```{r}
+data <- jsonlite::fromJSON(rawToChar(daily_counts$content))
+
+data$startTime
+
+```
+
