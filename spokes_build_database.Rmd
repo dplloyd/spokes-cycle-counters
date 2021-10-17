@@ -116,12 +116,13 @@ dbDisconnect(ecc_counter_db)
 
 ```
 
+
+## Merging bin and pvr
+
 Now we must determine the overlap between each of these two datasets, and merge in a final consolidated file.
 
 
 ```{r}
-
-# Merging the two datasets
 
 # Load the data
 
@@ -134,7 +135,42 @@ df_pvr <- tbl(con, "station_counts_hour_pvr") %>% collect()
 dbDisconnect(con)
 
 
-df_bin <- df_bin %>% group_by(date, direction_description)
-df_pvr <- df_pvr %>% group_by(date, direction_description)---
+# df_bin <- df_bin %>% group_by(date, direction_description)
+# df_pvr <- df_pvr %>% group_by(date, direction_description)
 
 ```
+
+
+Compare the structure of each dataframe
+
+```{r}
+glimpse(df_bin)
+glimpse(df_pvr)
+```
+
+They have the same structure. For each station, we want to know the time overlap. Note that time here is current in second relative to a fixed point, so I will convert to datetime class later.
+
+```{r}
+
+# df_bin <- df_bin %>% group_by(station_num, direction_description)
+# 
+# df_pvr <- df_pvr %>% group_by(station_num, direction_description)
+
+df_combo <- full_join(df_bin,df_pvr,
+                      by = c("station_name","direction_description","date"), keep = TRUE)
+
+df_combo_same <- df_combo %>%  
+  dplyr::filter(!is.na(volume.y) & !is.na(volume.x) & (volume.x == volume.y )) %>% nrow()
+
+df_combo_duplicate <- df_combo %>%  
+  dplyr::filter(!is.na(volume.y) & !is.na(volume.x) & (volume.x != volume.y ))
+
+```
+
+Variable `df_combo_duplicate` holds the station records from bin and pvr file variants that do not agree with each other. In total, `r scales::percent(nrow(df_combo_duplicate)/nrow(df_combo), accuracy=0.01)` of the records have duplicate time-stamp in pvr files and do not agree.
+
+
+# Inspecting the data sets
+
+
+We use `GGally` and `visdat` which have some useful functions.
