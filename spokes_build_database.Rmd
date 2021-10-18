@@ -1,8 +1,10 @@
 ---
 title: "Building Open Travel Databases"
-output: html_notebook
+output: html_document
 author: "Diarmuid Lloyd (diarmuid.lloyd@gmail.com)"
 date: "First written: October 2021. Last run: `r Sys.Date()`"
+editor_options: 
+  chunk_output_type: console
 ---
 
 # Purpose
@@ -19,13 +21,18 @@ The Just Eat bicyle rental scheme stopped in September 2021. The full data set o
 JR provided data from an FOI request. ECC supplied the the data as `csv` files, organised in sub folders for each counter location. In total, there's around 500MB of data. Further, the files are prefixed with either `bin_` or `pvr_`, with a small amount of overlap. The approach here is to loop over all `bin_` and `pvr_` files separately, creating two tables, before merging into a final table.
 
 
-First, set out packages:
-```{r}
+First, set out packages. Note, I've set glbal evaluation to `FALSE` as this document takes ages to knit otherwise. Either run each chunk manually, or delete `knitr::opts_chunk$set(eval = FALSE)`.
+```{r, setup}
 
 ## Packages
 library(tidyverse)
 library(dbplyr)
 library(DBI)
+
+#Global options
+knitr::opts_chunk$set(eval = FALSE)
+
+
 ```
 
 
@@ -128,15 +135,12 @@ Now we must determine the overlap between each of these two datasets, and merge 
 
 con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "data/ecc-counter-database-output.sqlite")
 
-df_bin <- tbl(con, "station_counts_hour_bin") %>% collect()
+df_bin <- tbl(con, "station_counts_hour_bin") %>% collect() %>%  
+  mutate(date = lubridate::as_datetime(date))
 
-df_pvr <- tbl(con, "station_counts_hour_pvr") %>% collect()
+df_pvr <- tbl(con, "station_counts_hour_pvr") %>% collect() %>% 
+  mutate(date = lubridate::as_datetime(date))
 
-dbDisconnect(con)
-
-
-# df_bin <- df_bin %>% group_by(date, direction_description)
-# df_pvr <- df_pvr %>% group_by(date, direction_description)
 
 ```
 
@@ -152,25 +156,56 @@ They have the same structure. For each station, we want to know the time overlap
 
 ```{r}
 
-# df_bin <- df_bin %>% group_by(station_num, direction_description)
-# 
-# df_pvr <- df_pvr %>% group_by(station_num, direction_description)
+df_combo <- rbind(df_bin,df_pvr) 
 
-df_combo <- full_join(df_bin,df_pvr,
-                      by = c("station_name","direction_description","date"), keep = TRUE)
+# Write the joined version to DB.
+dbWriteTable(con,"station_counts_hour_joined", df_combo, overwrite = TRUE)
 
-df_combo_same <- df_combo %>%  
-  dplyr::filter(!is.na(volume.y) & !is.na(volume.x) & (volume.x == volume.y )) %>% nrow()
-
-df_combo_duplicate <- df_combo %>%  
-  dplyr::filter(!is.na(volume.y) & !is.na(volume.x) & (volume.x != volume.y ))
+      
+#Disconnect from db
+dbDisconnect(con)
 
 ```
 
-Variable `df_combo_duplicate` holds the station records from bin and pvr file variants that do not agree with each other. In total, `r scales::percent(nrow(df_combo_duplicate)/nrow(df_combo), accuracy=0.01)` of the records have duplicate time-stamp in pvr files and do not agree.
+Now attempting to ID where there are duplicates and apply a sensible way of picking either the pvr or bin files.
+
+```{r}
+
+df_combo <- df_combo %>% 
+  group_by(station_num, date, direction_description) %>% 
+  arrange(by_group = TRUE) 
+
+#Expect groups to have a size of 2
+groups_with_issues = df_combo %>% 
+  filter(n() >=3 ) 
 
 
-# Inspecting the data sets
+```
 
 
-We use `GGally` and `visdat` which have some useful functions.
+There are a small number of duplicate records between the `bin` and `pvr` files. Not all of the volume counts agree, either. Further, there are instances of more than two records for a given time period for the same station, in the same direction. I would have assumed only two would be expected. Here's an example:
+
+
+```{r}
+groups_with_issues 
+```
+
+
+The covernote with the data states:
+
+> CEC Active Travel counter historic data up to April 2021 (Raw Data)
+  The data has been bundled per counter per year in bins of 1 hour.
+The transfer to the new website took place in 2019 and due to formatting, some counters have two spreadsheets for this year (one with data pretransfer and one with data post transfer).
+ Those counters that have the capability to differentiate between different group users (i.e.  pedestrians, bike users, scooters and motorbikes) have a dedicated column with the breakdown, however, the raw data only shows this as a different type of “vehicle”. 
+Data may be inaccurate due to maintenance, communication issues, road works, and/or misuse by users. 
+
+So I'm not sure how to interpret the disagreements in the context of this note. Something to bear in mind for the data cleaning, however. In terms of the distribution of the number of counts per station, per time period, per direction, we would expect two. So could either take mean, or chuck the duplicates.
+
+
+
+
+
+
+
+
+
