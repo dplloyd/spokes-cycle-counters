@@ -15,6 +15,7 @@ library(jsonlite)
 library(tidyverse)
 ```
 
+# Using the API
 
 ```{r}
 
@@ -34,7 +35,111 @@ We'll need the jsonlite library, so have added that.
 ```{r}
 data <- jsonlite::fromJSON(rawToChar(daily_counts$content))
 
-data$startTime
+data <- data %>% mutate(startTime = lubridate::as_datetime(startTime))
+
+data %>% group_by(location) %>% 
+  ggplot() +
+  geom_point(aes(x = startTime, count, group = location))
 
 ```
+
+This will be good for creating apps, or where we just need most recent data.
+
+# Full dataset
+
+I downloaded all the data and saved locally 
+
+```{r}
+
+df_od <- read_csv("data/344546f1-7bc3-43fa-9d18-90a1b8922a6f.csv")
+
+glimpse(df_od)
+
+```
+
+With a quick check of the data:
+
+```{r}
+df_od %>% 
+  group_by(location) %>% 
+  ggplot(aes(x = startTime, y = count, group = location)) +
+  geom_line()
+```
+
+# Adding useful flags
+
+Suspect there are weekend effects at play in the data, so create a weekend flag
+
+
+
+```{r}
+ df_od <- df_od %>% 
+  mutate(weekend = if_else(lubridate::wday(startTime) %in% c(1,7), TRUE, FALSE ) ,
+         day = lubridate::wday(startTime))
+```
+
+
+# Checking the stations of interest
+
+
+
+**On Road - SfP**
+
+* 031 Dundee Street
+* 035 A90 Deans Bridge
+* 048 Crewe Rd South
+* 038 Bruntsfield Pl (Southbound)
+
+**On Road - Non SfP**
+
+* 052 A8 Wester Coates
+
+**Off Road - Non SfP**
+
+* 015 Middle Meadow Walk
+
+
+Manually construct a tribble which holds the stations of interest, with a SpF flag.
+
+```{r}
+df_od %>% count(location,siteID)
+
+site_id <- tribble(~siteID, ~sfp,
+                    "EDH0035", "on-road SfP",
+                    "EDH0031", "on-road SfP",
+                   "EDH0048", "on-road SfP",
+                   "EDH0039", "on-road SfP",
+                   "EDH0052", "on-road non-SfP",
+                   "EDH55500015", "off-road non-SfP") %>% 
+  mutate(sfp = as.factor(sfp))
+```
+
+We now filter the data for those stations
+
+```{r}
+df_f <- df_od %>% filter( siteID %in% site_id$siteID ) %>% 
+  mutate(year =lubridate::year(startTime) )
+
+df_f %>% 
+  ggplot() +
+  geom_line(aes(x = startTime, y = count, colour= year)) +
+  facet_wrap(~location)
+
+
+```
+
+
+Weekday totals
+
+```{r}
+
+df_f %>% group_by(siteID, day) %>% 
+  summarise(count = sum(count))
+
+
+
+```
+
+
+
 

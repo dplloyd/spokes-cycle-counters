@@ -33,10 +33,13 @@ Loading counter data for locations John flagged as of interest:
 
 * 015 Middle Meadow Walk
 
+
+#Connecting to database 
+
 ```{r}
 con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "data/ecc-counter-database-output.sqlite")
 
-df <- tbl(con, "station_counts_hour") %>% 
+df <- tbl(con, "station_counts_hour_joined") %>% 
   filter(station_num %in% c("31","35","48","38","52","15")) %>% collect()
 
 dbDisconnect(con)
@@ -51,7 +54,42 @@ dbDisconnect(con2)
 
 ```
 
+
 # Intial plots and exploring data
+
+Checking how many records there are per station, per direction for each hourly time period. Would only expect there to be one for each.
+
+```{r}
+n_records <- df %>%
+  group_by(station_num, station_name, direction_description, date) %>% 
+  summarise(n_records  = n())
+
+hist(n_records$n_records)
+
+```
+
+Most have one record, but a significant number have two. Is there something different about the stations with two records?
+
+```{r}
+
+n_records %>% 
+  group_by(station_name,date, direction_description) %>% 
+  filter(n_records > 1) %>% 
+  summarise(n = n()) %>% 
+  ggplot() +
+  geom_point(aes(x = date, y = n, colour = direction_description),alpha = 0.2) +
+  facet_wrap(~station_name)
+
+```
+
+This plot suggests that of the timepoints were more than one record is present, 2020 is a hotspot for three stations, but Dundee street also some suspect counts going back to 2015, and then again in 2009. Hoe divergent are these counts?
+
+```{r}
+df %>% ungroup() %>% count(flag_text)
+```
+
+
+
 
 ```{r}
 
@@ -98,7 +136,7 @@ Plotting weekly total trips, also filtering out all flagged "bad data". Seems to
 ```{r}
 
 weekly_counts_rough <- ggplot(df_weekly) +
-  geom_col(aes(week_starting, volume, fill = station_name)) + 
+  geom_line(aes(week_starting, volume, fill = station_name)) + 
   facet_wrap(~station_name) +
     theme(legend.position = "none")
 

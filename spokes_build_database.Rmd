@@ -30,7 +30,7 @@ library(dbplyr)
 library(DBI)
 
 #Global options
-knitr::opts_chunk$set(eval = FALSE)
+#knitr::opts_chunk$set(eval = FALSE)
 
 
 ```
@@ -191,7 +191,7 @@ groups_with_issues
 ```
 
 
-The covernote with the data states:
+The cover note with the data states:
 
 > CEC Active Travel counter historic data up to April 2021 (Raw Data)
   The data has been bundled per counter per year in bins of 1 hour.
@@ -204,7 +204,9 @@ So I'm not sure how to interpret the disagreements in the context of this note. 
 
 
 
+# Active Travel Data Portal
 
+These data are also accessible via the [Active Travel Open Data portal](https://usmart.io/org/cyclingscotland/). I've downloaded a local copy, and add this to the database here.
 
 
 
