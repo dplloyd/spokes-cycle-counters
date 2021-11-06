@@ -192,12 +192,17 @@ Weekly totals, ignoring any dodgy data, etc.
 
 ```{r}
 
-df_f %>% group_by(siteID,week_starting) %>% 
+png(filename = "output/weekly_bike_counts_selected_stations.png")
+df_f %>% group_by(siteID,location,sfp,week_starting) %>% 
   summarise(count = sum(count, na.rm = TRUE)) %>% 
-    geom_col(aes(x = week_starting, y = count, colour= year)) +
-  facet_wrap(~location)
+  ggplot() +
+    geom_line(aes(x = week_starting, y = count, colour = sfp)) +
+  facet_wrap(~location) +
   
-
+  labs(title = "Weekly bicycle counts for selected stations",
+       subtitle = "No data cleaning")
+  
+dev.off()
 
 
 ```
