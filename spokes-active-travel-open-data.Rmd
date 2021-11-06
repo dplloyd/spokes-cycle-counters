@@ -87,7 +87,7 @@ data %>% group_by( location) %>%
 
 # Full datasets
 
-THe full dataset can be downloaded for each of:
+The full dataset can be downloaded for each of:
 
 * Daily bicycle counts
 * Hourly bicycle counts
@@ -105,6 +105,8 @@ df_od <- read_csv("data/cycling-scotland-edinburgh-daily-counts.csv")
 
 glimpse(df_od)
 
+df_od %>% group_by(startTime) %>% summarise(count)
+
 ```
 
 With a quick check of the data, by plotting the daily totals for all counters.
@@ -117,14 +119,19 @@ df_od %>%
   geom_line()
 ```
 
-# Adding useful flags
+# Adding useful variables
 
-Suspect there are weekend effects at play in the data, so create a weekend flag
 
 ```{r}
+
+# Probably weekend effects at play, so create a weekend flag.
  df_od <- df_od %>% 
   mutate(weekend = if_else(lubridate::wday(startTime) %in% c(1,7), TRUE, FALSE ) ,
          day = lubridate::wday(startTime))
+
+# Week starting flag, to allow summing trips in a given week
+ df_od <- df_od %>% 
+  mutate(week_starting = lubridate::floor_date(startTime, unit = "week"))
 ```
 
 
@@ -146,7 +153,7 @@ Suspect there are weekend effects at play in the data, so create a weekend flag
 * 015 Middle Meadow Walk
 
 
-Manually construct a tribble which holds the stations of interest, with a SpF flag.
+Manually construct a tribble which holds the stations of interest, with a SpF flag, then match that in to the main dataset.
 
 ```{r}
 df_od %>% count(location,siteID)
@@ -159,9 +166,13 @@ site_id <- tribble(~siteID, ~sfp,
                    "EDH0052", "on-road non-SfP",
                    "EDH55500015", "off-road non-SfP") %>% 
   mutate(sfp = as.factor(sfp))
+
+
+df_od <- left_join(df_od,site_id, by = "siteID")
+
 ```
 
-We now filter the data for those stations
+We now filter the data for those stations, and plot.
 
 ```{r}
 df_f <- df_od %>% filter( siteID %in% site_id$siteID ) %>% 
@@ -176,12 +187,16 @@ df_f %>%
 ```
 
 
-Weekday totals
+Weekly totals, ignoring any dodgy data, etc.
+
 
 ```{r}
 
-df_f %>% group_by(siteID, day) %>% 
-  summarise(count = sum(count))
+df_f %>% group_by(siteID,week_starting) %>% 
+  summarise(count = sum(count, na.rm = TRUE)) %>% 
+    geom_col(aes(x = week_starting, y = count, colour= year)) +
+  facet_wrap(~location)
+  
 
 
 
