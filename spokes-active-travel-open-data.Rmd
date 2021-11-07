@@ -14,10 +14,14 @@ theme: flatly
 library(httr)
 library(jsonlite)
 library(tidyverse)
+library(hrbrthemes)
+
+hrbrthemes::import_roboto_condensed()
+
 ```
 
 
-This is a notebook for recording different ways of accessing, and early data exploration, of  the [Active Travel Open Data portal](https://usmart.io/org/cyclingscotland/). 
+This is a notebook for recording different ways of accessing, and early data exploration, of the [Active Travel Open Data portal](https://usmart.io/org/cyclingscotland/). 
 
 # Live counter data using API
 
@@ -192,7 +196,6 @@ Weekly totals, ignoring any dodgy data, etc.
 
 ```{r}
 
-png(filename = "output/weekly_bike_counts_selected_stations.png")
 df_f %>% group_by(siteID,location,sfp,week_starting) %>% 
   summarise(count = sum(count, na.rm = TRUE)) %>% 
   ggplot() +
@@ -201,12 +204,37 @@ df_f %>% group_by(siteID,location,sfp,week_starting) %>%
   
   labs(title = "Weekly bicycle counts for selected stations",
        subtitle = "No data cleaning")
-  
-dev.off()
+
+ggsave("output/weekly_bike_counts_selected_stations.png", plot = last_plot())  
+
 
 
 ```
 
+The distribution of total daily counts per year might be more helpful. Here, we compare 2019 and 2021:
+
+
+```{r}
+
+bin_width = 50
+
+df_f %>% group_by(siteID,location,year,week_starting, day) %>% 
+  filter(count > 0,
+         year ==2019 | year==2021) %>% 
+  summarise(count = sum(count, na.rm = TRUE)) %>% 
+  
+  
+  ggplot(aes(x = count, group = year, fill = as.factor(year))) +
+  geom_histogram(
+    aes(y = stat(density*width)),
+    alpha = 0.5, position = "identity") +
+  facet_wrap(~location, scales = "free") +
+  scale_x_continuous(name = "Daily count") 
+
+ggsave("output/daily_counts_2019_2020_histogram_selected_stations.png", plot = last_plot())  
+
+
+```
 
 
 
